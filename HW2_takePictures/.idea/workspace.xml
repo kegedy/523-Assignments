@@ -52,7 +52,9 @@
     </select>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7707db25-c452-4227-ba7b-b1ae7877398b" name="Default Changelist" comment="" />
+    <list default="true" id="7707db25-c452-4227-ba7b-b1ae7877398b" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -252,10 +254,10 @@
       <screen x="48" y="27" width="1872" height="1053" />
     </state>
     <state x="731" y="301" width="505" height="512" key="AndroidProcessChooserDialog/48.27.1872.1053@48.27.1872.1053" timestamp="1626814615399" />
-    <state x="899" y="242" width="424" height="520" key="FileChooserDialogImpl" timestamp="1627309536478">
+    <state x="899" y="242" width="424" height="520" key="FileChooserDialogImpl" timestamp="1628049293896">
       <screen x="48" y="27" width="1872" height="1053" />
     </state>
-    <state x="899" y="242" width="424" height="520" key="FileChooserDialogImpl/48.27.1872.1053@48.27.1872.1053" timestamp="1627309536478" />
+    <state x="899" y="242" width="424" height="520" key="FileChooserDialogImpl/48.27.1872.1053@48.27.1872.1053" timestamp="1628049293896" />
     <state width="1826" height="231" key="GridCell.Tab.0.bottom" timestamp="1627241172585">
       <screen x="48" y="27" width="1872" height="1053" />
     </state>
