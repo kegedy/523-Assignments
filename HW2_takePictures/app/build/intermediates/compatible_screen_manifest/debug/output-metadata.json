@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "artifactType": {
+    "type": "COMPATIBLE_SCREEN_MANIFEST",
+    "kind": "Directory"
+  },
+  "applicationId": "edu.uw.eep523.summer2021.takepictures",
+  "variantName": "debug",
+  "elements": []
+}

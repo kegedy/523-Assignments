@@ -1,0 +1,4 @@
+#Tue Jul 20 14:07:30 PDT 2021
+base.0=/home/kegedy/Documents/EDU/ee523_summer2021/Lecture3_takePictures/app/build/intermediates/dex/release/mergeDexRelease/classes.dex
+renamed.0=classes.dex
+path.0=classes.dex

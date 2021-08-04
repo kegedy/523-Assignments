@@ -1,0 +1,2 @@
+edu/uw/eep523/summer2021/takepictures/BuildConfig.java
+ edu.uw.eep523.summer2021.takepictures.BuildConfig
