@@ -54,13 +54,20 @@
   <component name="ChangeListManager">
     <list default="true" id="7707db25-c452-4227-ba7b-b1ae7877398b" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../HW3_blurFaces/app/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/../HW3_blurFaces/app/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../HW3_blurFaces/app/src/main/java/edu/uw/eep523/summer2021/takepictures/MainActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../HW3_blurFaces/app/src/main/java/edu/uw/eep523/summer2021/takepictures/MainActivity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../HW3_blurFaces/app/src/main/res/layout/activity_main.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../HW3_blurFaces/app/src/main/res/layout/activity_main.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../HW3_blurFaces/app/src/main/res/layout/fragment_second.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../HW3_blurFaces/app/src/main/res/values/strings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../HW3_blurFaces/app/src/main/res/values/strings.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../HW3_blurFaces/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/../HW3_blurFaces/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../HW3_blurFaces/gradle.properties" beforeDir="false" afterPath="$PROJECT_DIR$/../HW3_blurFaces/gradle.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[VirtualDevicePath@/home/kegedy/.android/avd/Pixel_3a_API_30_x86.avd]" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[SerialNumber@S5020D1H98101E37]" />
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
       <ProjectState />

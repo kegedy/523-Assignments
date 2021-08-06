@@ -1,35 +1,57 @@
 
 package edu.uw.eep523.summer2021.takepictures
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
-import android.util.AttributeSet
 import android.util.Log
-import androidx.appcompat.app.AppCompatActivity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.divyanshu.draw.widget.DrawView
+import com.google.firebase.FirebaseApp
+import com.google.firebase.ml.vision.FirebaseVision
+import com.google.firebase.ml.vision.common.FirebaseVisionImage
+import com.google.firebase.ml.vision.face.FirebaseVisionFace
+import com.google.firebase.ml.vision.face.FirebaseVisionFaceDetectorOptions
+import com.google.firebase.ml.vision.face.FirebaseVisionFaceLandmark
+import java.io.FileReader
 import java.io.IOException
-import java.util.ArrayList
-
+import java.lang.Math.pow
+import java.util.*
+import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 
 class MainActivity : AppCompatActivity() {
+    // https://stackoverflow.com/questions/55909804/duplicate-class-android-support-v4-app-inotificationsidechannel-found-in-modules
+    // https://stackoverflow.com/questions/13119582/immutable-bitmap-crash-error
 
     private var isLandScape: Boolean = false
     private var imageUri: Uri? = null
+    private var imageUriPrev: Uri? = null
     private var imageUri2: Uri? = null
+    private var imageUri2Prev: Uri? = null
+    private var isModified: Boolean = false
+    private var isModified2: Boolean = false
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -42,11 +64,13 @@ class MainActivity : AppCompatActivity() {
 
         savedInstanceState?.let {
             imageUri = it.getParcelable(KEY_IMAGE_URI)
+            imageUriPrev = it.getParcelable(KEY_IMAGE_URI_PREV)
             imageUri2 = it.getParcelable(KEY_IMAGE_URI2)
+            imageUri2Prev = it.getParcelable(KEY_IMAGE_URI2_PREV)
         }
 
         // IMAGE PLACEHOLDERS
-        refresh()
+        imagePlaces()
 
         // CLICK LISTENERS
         val btnCamera = findViewById<Button>(R.id.btn_camera)
@@ -57,10 +81,28 @@ class MainActivity : AppCompatActivity() {
         btnCamera2.setOnClickListener { startCameraIntentForResult(btnCamera2) }
         val btnGallery2 = findViewById<Button>(R.id.btn_gallery2)
         btnGallery2.setOnClickListener { startChooseImageIntentForResult(btnGallery2) }
-        val startOver = findViewById<Button>(R.id.startOver)
-        startOver.setOnClickListener { refresh() }
-        val cropToSquare = findViewById<Button>(R.id.modify)
-        cropToSquare.setOnClickListener { modifyImages() }
+        val swap = findViewById<Button>(R.id.swap)
+        swap.setOnClickListener { bitmapFaceSwap() } // update
+        val blur = findViewById<Button>(R.id.blur)
+        blur.setOnClickListener { bitmapBlurWrapper() } // update
+        val clear = findViewById<Button>(R.id.clear)
+        clear.setOnClickListener { imageRefresh() }
+        val draw3 = findViewById<DrawView>(R.id.previewPane3)
+        draw3.setOnTouchListener { _, event ->
+            draw3.onTouchEvent(event)
+            if (event.action == MotionEvent.ACTION_UP) {
+                isModified=true
+            }
+            true
+        }
+        val draw4 = findViewById<DrawView>(R.id.previewPane4)
+        draw4.setOnTouchListener { _, event ->
+            draw4.onTouchEvent(event)
+            if (event.action == MotionEvent.ACTION_UP) {
+                isModified2=true
+            }
+            true
+        }
     }
 
     private fun getRequiredPermissions(): Array<String?> {
@@ -112,43 +154,56 @@ class MainActivity : AppCompatActivity() {
         return false
     }
 
-    private fun refreshUserImages() {
+    private fun imagePlaces() {
         val pane = findViewById<ImageView>(R.id.previewPane)
         pane.setBackgroundResource(R.drawable.ic_launcher_background)
         pane.setImageResource(R.drawable.ic_launcher_foreground)
         val pane2 = findViewById<ImageView>(R.id.previewPane2)
         pane2.setBackgroundResource(R.drawable.ic_launcher_background)
         pane2.setImageResource(R.drawable.ic_launcher_foreground)
+        val draw3 = findViewById<DrawView>(R.id.previewPane3)
+        draw3.setBackgroundResource(R.drawable.ic_launcher_background)
+        val draw4 = findViewById<DrawView>(R.id.previewPane4)
+        draw4.setBackgroundResource(R.drawable.ic_launcher_background)
     }
 
-    private fun refreshmodifyImages() {
-        val pane3 = findViewById<ImageView>(R.id.previewPane3)
-        pane3.setBackgroundResource(R.drawable.ic_launcher_background)
-        pane3.setImageResource(R.drawable.ic_launcher_foreground)
-        val pane4 = findViewById<ImageView>(R.id.previewPane4)
-        pane4.setBackgroundResource(R.drawable.ic_launcher_background)
-        pane4.setImageResource(R.drawable.ic_launcher_foreground)
+    private fun imageRefresh() {
+        Log.i("Kevin",imageUri.toString())
+        Log.i("Kevin",imageUriPrev.toString())
+
+        val draw3 = findViewById<DrawView>(R.id.previewPane3)
+        val draw4 = findViewById<DrawView>(R.id.previewPane4)
+        val imageBitmap = detectInImage(imageUri)
+        val imageBitmap2 = detectInImage(imageUri2)
+
+        if (isModified) {
+            draw3?.clearCanvas()
+            if (imageUriPrev != null) draw3.background= BitmapDrawable(resources, imageBitmap);
+            isModified = false
+        }
+        if (isModified2) {
+            draw4?.clearCanvas()
+            if (imageUri2Prev != null) draw4.background= BitmapDrawable(resources, imageBitmap2);
+            isModified2 = false
+        }
     }
 
-    private fun refresh() {
-        refreshUserImages()
-        refreshmodifyImages()
-    }
+
 
     public override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         with(outState) {
             putParcelable(KEY_IMAGE_URI, imageUri)
+            putParcelable(KEY_IMAGE_URI_PREV, imageUriPrev)
             putParcelable(KEY_IMAGE_URI2, imageUri2)
+            putParcelable(KEY_IMAGE_URI2_PREV, imageUri2Prev)
         }
     }
 
     private fun startCameraIntentForResult(view:View) {
         // Clean up last time's image
-//        refreshUserImages()
-        imageUri = null
-        imageUri2 = null
-
+        // imageUri = null
+        // imageUri2 = null
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
         if (view.id == R.id.btn_camera) { // SET IMAGE #1
@@ -158,6 +213,7 @@ class MainActivity : AppCompatActivity() {
                 values.put(MediaStore.Images.Media.DESCRIPTION, "From Camera")
                 imageUri =
                     contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                imageUriPrev = imageUri
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri)
                 startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
             }
@@ -168,6 +224,7 @@ class MainActivity : AppCompatActivity() {
                 values.put(MediaStore.Images.Media.DESCRIPTION, "From Camera")
                 imageUri2 =
                     contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                imageUri2Prev = imageUri2
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri2)
                 startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE2)
             }
@@ -192,35 +249,45 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        val previewPane = findViewById<ImageView>(R.id.previewPane)
-        val previewPane2 = findViewById<ImageView>(R.id.previewPane2)
+        val pane = findViewById<ImageView>(R.id.previewPane)
+        val pane2 = findViewById<ImageView>(R.id.previewPane2)
+        val draw3 = findViewById<DrawView>(R.id.previewPane3)
+        val draw4 = findViewById<DrawView>(R.id.previewPane4)
 
         super.onActivityResult(requestCode, resultCode, data)
         Log.i("Kevin",requestCode.toString())
         Log.i("Kevin",resultCode.toString())
         if (resultCode != Activity.RESULT_OK) {
-            refresh()
             return
         }
+
         when (requestCode) {
             REQUEST_IMAGE_CAPTURE -> {
-                previewPane?.setBackgroundColor(0)
-                tryReloadImage(findViewById(R.id.previewPane),imageUri)
+                tryReloadImage(pane,imageUri)
+                tryReloadDraw(draw3,imageUri)
             }
             REQUEST_IMAGE_CAPTURE2 -> {
-                previewPane2?.setBackgroundColor(0)
-                tryReloadImage(findViewById(R.id.previewPane2),imageUri2)
+                tryReloadImage(pane2,imageUri2)
+                tryReloadDraw(draw4,imageUri2)
             }
             REQUEST_CHOOSE_IMAGE -> {
-                previewPane?.setBackgroundColor(0)
                 imageUri = data!!.data
-                tryReloadImage(findViewById(R.id.previewPane),imageUri)
+                imageUriPrev = imageUri
+                tryReloadImage(pane,imageUri)
+                tryReloadDraw(draw3,imageUri)
             }
             REQUEST_CHOOSE_IMAGE2 -> {
-                previewPane2?.setBackgroundColor(0)
                 imageUri2 = data!!.data
-                tryReloadImage(findViewById(R.id.previewPane2),imageUri2)
+                imageUri2Prev = imageUri2
+                tryReloadImage(pane2,imageUri2)
+                tryReloadDraw(draw4,imageUri2)
             }
+//            REQUEST_BLUR_FACE -> {
+//                // something
+//            }
+//            REQUEST_SWAP_FACE -> {
+//                // something
+//            }
         }
     }
 
@@ -240,48 +307,325 @@ class MainActivity : AppCompatActivity() {
         return imageBitmap
     }
 
-    private fun tryReloadImage(previewPane: ImageView, passedImageUri: Uri?) {
+    private fun tryReloadImage(view: ImageView, passedImageUri: Uri?) {
+        view.setBackgroundColor(0)
         val imageBitmap = detectInImage(passedImageUri)
         try {
-            previewPane?.setImageBitmap(imageBitmap)
+            view?.setImageBitmap(imageBitmap)
         } catch (e: IOException) { }
     }
 
-    private fun cropToSquare(previewPane: ImageView, bitmap: Bitmap) {
+    private fun tryReloadDraw(draw: DrawView, passedImageUri: Uri?) {
+        draw.setBackgroundColor(0)
+        val imageBitmap = detectInImage(passedImageUri)
+        try {
+            draw.background= BitmapDrawable(resources, imageBitmap)
+        } catch (e: IOException) { }
+    }
+
+    private fun bitmapMutable(passedImageUri: Uri): Bitmap? {
+        val imageBitmap = detectInImage(passedImageUri)
+        var bitmapMutable: Bitmap? = null
+        bitmapMutable = imageBitmap?.let{ Bitmap.createBitmap(it, 0, 0, it.width, it.height) }
+        bitmapMutable = bitmapMutable?.copy(Bitmap.Config.ARGB_8888, true)
+        return bitmapMutable
+    }
+
+    private fun bitmapFaceSwap() {
+        var bitmap: Bitmap? = imageUri?.let { bitmapMutable(it) }
+        var bitmap2: Bitmap? = imageUri2?.let { bitmapMutable(it) }
+        Log.i("Kevin",imageUri.toString())
+        faceDetection(bitmap?.let{ Bitmap.createScaledBitmap(it, it.width/2, it.height/2, true) })
+//        var (centerX, centerY, radius) = faceDetection(bitmap)
         //something
-        val width  = bitmap.width
-        val height = bitmap.height
-        val newWidth = if (height > width) width else height
-        val newHeight = if (height > width) height - ( height - width) else height
-        var cropW = (width - height) / 2
-        cropW = if (cropW < 0) 0 else cropW
-        var cropH = (height - width) / 2
-        cropH = if (cropH < 0) 0 else cropH
-        val cropImg = Bitmap.createBitmap(bitmap, cropW, cropH, newWidth, newHeight)
-        previewPane?.setImageBitmap(cropImg)
+
+    }
+
+    private fun processFaces(faces: List<FirebaseVisionFace>): FirebaseVisionFace? {
+        Log.i("Kevin",faces.isEmpty().toString())
+        if (faces.isEmpty()) return null
+
+        val face = faces[0]
+        val centerX = (face.boundingBox.centerX().toFloat())
+        val centerY = (face.boundingBox.centerY().toFloat())
+        var leftEyePosX = 0F
+        var leftEyePosY = 0F
+        val leftEye = face.getLandmark(FirebaseVisionFaceLandmark.LEFT_EYE)
+
+        leftEye?.let {
+            leftEyePosX = leftEye.position.x
+            leftEyePosY = leftEye.position.y
+        }
+        Log.i("Kevin",centerX.toString())
+        Log.i("Kevin",centerY.toString())
+//        val radius = sqrt((leftEyePosX - centerX).pow(2) + (leftEyePosY - centerY).pow(2))
+        return face
     }
 
 
-    private fun modifyImages() {
-        val previewPane3 = findViewById<ImageView>(R.id.previewPane3)
-        val previewPane4 = findViewById<ImageView>(R.id.previewPane4)
-        val imageBitmap = detectInImage(imageUri)
-        val imageBitmap2 = detectInImage(imageUri2)
-        if (imageBitmap != null) {
-            cropToSquare(previewPane3,imageBitmap)
+    private fun faceDetection(mSelectedImage: Bitmap?) { //Array<Float>
+        Log.i("Kevin","faceDetection")
+        val image = FirebaseVisionImage.fromBitmap(mSelectedImage!!)
+
+        
+        val options = FirebaseVisionFaceDetectorOptions.Builder()
+            .setPerformanceMode(FirebaseVisionFaceDetectorOptions.FAST)
+            .setLandmarkMode(FirebaseVisionFaceDetectorOptions.ALL_LANDMARKS)
+            .setContourMode(FirebaseVisionFaceDetectorOptions.ALL_CONTOURS)
+            .setClassificationMode(FirebaseVisionFaceDetectorOptions.ALL_CLASSIFICATIONS)
+            .build()
+        val detector = FirebaseVision.getInstance().getVisionFaceDetector(options) //options
+        detector.detectInImage(image)
+            .addOnSuccessListener { faces ->
+                processFaces(faces)
+                Log.i("Kevin","Success")
+            }
+            .addOnFailureListener { e -> // Task failed with an exception
+                e.printStackTrace()
+                Log.i("Kevin","Failure")
+            }
+    }
+
+    private fun bitmapBlurWrapper() {
+        val draw3 = findViewById<DrawView>(R.id.previewPane3)
+        val draw4 = findViewById<DrawView>(R.id.previewPane4)
+        var bitmap: Bitmap? = imageUri?.let { bitmapMutable(it) }
+        var bitmap2: Bitmap? = imageUri2?.let { bitmapMutable(it) }
+
+        if (imageUri != null) {
+            var drawBitmap = bitmap?.let {bitmapBlur(it, 1F,100)}
+            draw3?.background = BitmapDrawable(resources, drawBitmap)
+            isModified = true
         }
-        if (imageBitmap2 != null) {
-            cropToSquare(previewPane4,imageBitmap2)
+        if (imageUri2 != null) {
+            var drawBitmap2 = bitmap2?.let {bitmapBlur(it, 1F,100)}
+            draw4?.background = BitmapDrawable(resources, drawBitmap2)
+            isModified2 = true
         }
+    }
+
+    private fun bitmapBlur(sentBitmap: Bitmap, scale: Float, radius: Int): Bitmap? {
+        var sentBitmap = sentBitmap
+        val width = (sentBitmap.width * scale).roundToInt()
+        val height = (sentBitmap.height * scale).roundToInt()
+        sentBitmap = Bitmap.createScaledBitmap(sentBitmap, width, height, false)
+        val bitmap = sentBitmap.copy(sentBitmap.config, true)
+        if (radius < 1) {
+            return null
+        }
+        val w = bitmap.width
+        val h = bitmap.height
+        val pix = IntArray(w * h)
+        Log.e("pix", w.toString() + " " + h + " " + pix.size)
+        bitmap.getPixels(pix, 0, w, 0, 0, w, h)
+        val wm = w - 1
+        val hm = h - 1
+        val wh = w * h
+        val div = radius + radius + 1
+        val r = IntArray(wh)
+        val g = IntArray(wh)
+        val b = IntArray(wh)
+        var rsum: Int
+        var gsum: Int
+        var bsum: Int
+        var x: Int
+        var y: Int
+        var i: Int
+        var p: Int
+        var yp: Int
+        var yi: Int
+        val vmin = IntArray(w.coerceAtLeast(h))
+        var divsum = div + 1 shr 1
+        divsum *= divsum
+        val dv = IntArray(256 * divsum)
+        i = 0
+        while (i < 256 * divsum) {
+            dv[i] = i / divsum
+            i++
+        }
+        yi = 0
+        var yw: Int = yi
+        val stack = Array(div) { IntArray(3) }
+        var stackpointer: Int
+        var stackstart: Int
+        var sir: IntArray
+        var rbs: Int
+        val r1 = radius + 1
+        var routsum: Int
+        var goutsum: Int
+        var boutsum: Int
+        var rinsum: Int
+        var ginsum: Int
+        var binsum: Int
+        y = 0
+        while (y < h) {
+            bsum = 0
+            gsum = bsum
+            rsum = gsum
+            boutsum = rsum
+            goutsum = boutsum
+            routsum = goutsum
+            binsum = routsum
+            ginsum = binsum
+            rinsum = ginsum
+            i = -radius
+            while (i <= radius) {
+                p = pix[yi + wm.coerceAtMost(i.coerceAtLeast(0))]
+                sir = stack[i + radius]
+                sir[0] = p and 0xff0000 shr 16
+                sir[1] = p and 0x00ff00 shr 8
+                sir[2] = p and 0x0000ff
+                rbs = r1 - abs(i)
+                rsum += sir[0] * rbs
+                gsum += sir[1] * rbs
+                bsum += sir[2] * rbs
+                if (i > 0) {
+                    rinsum += sir[0]
+                    ginsum += sir[1]
+                    binsum += sir[2]
+                } else {
+                    routsum += sir[0]
+                    goutsum += sir[1]
+                    boutsum += sir[2]
+                }
+                i++
+            }
+            stackpointer = radius
+            x = 0
+            while (x < w) {
+                r[yi] = dv[rsum]
+                g[yi] = dv[gsum]
+                b[yi] = dv[bsum]
+                rsum -= routsum
+                gsum -= goutsum
+                bsum -= boutsum
+                stackstart = stackpointer - radius + div
+                sir = stack[stackstart % div]
+                routsum -= sir[0]
+                goutsum -= sir[1]
+                boutsum -= sir[2]
+                if (y == 0) {
+                    vmin[x] = (x + radius + 1).coerceAtMost(wm)
+                }
+                p = pix[yw + vmin[x]]
+                sir[0] = p and 0xff0000 shr 16
+                sir[1] = p and 0x00ff00 shr 8
+                sir[2] = p and 0x0000ff
+                rinsum += sir[0]
+                ginsum += sir[1]
+                binsum += sir[2]
+                rsum += rinsum
+                gsum += ginsum
+                bsum += binsum
+                stackpointer = (stackpointer + 1) % div
+                sir = stack[stackpointer % div]
+                routsum += sir[0]
+                goutsum += sir[1]
+                boutsum += sir[2]
+                rinsum -= sir[0]
+                ginsum -= sir[1]
+                binsum -= sir[2]
+                yi++
+                x++
+            }
+            yw += w
+            y++
+        }
+        x = 0
+        while (x < w) {
+            bsum = 0
+            gsum = bsum
+            rsum = gsum
+            boutsum = rsum
+            goutsum = boutsum
+            routsum = goutsum
+            binsum = routsum
+            ginsum = binsum
+            rinsum = ginsum
+            yp = -radius * w
+            i = -radius
+            while (i <= radius) {
+                yi = 0.coerceAtLeast(yp) + x
+                sir = stack[i + radius]
+                sir[0] = r[yi]
+                sir[1] = g[yi]
+                sir[2] = b[yi]
+                rbs = r1 - abs(i)
+                rsum += r[yi] * rbs
+                gsum += g[yi] * rbs
+                bsum += b[yi] * rbs
+                if (i > 0) {
+                    rinsum += sir[0]
+                    ginsum += sir[1]
+                    binsum += sir[2]
+                } else {
+                    routsum += sir[0]
+                    goutsum += sir[1]
+                    boutsum += sir[2]
+                }
+                if (i < hm) {
+                    yp += w
+                }
+                i++
+            }
+            yi = x
+            stackpointer = radius
+            y = 0
+            while (y < h) {
+                // Preserve alpha channel: ( 0xff000000 & pix[yi] )
+                pix[yi] = -0x1000000 and pix[yi] or (dv[rsum] shl 16) or (dv[gsum] shl 8) or dv[bsum]
+                rsum -= routsum
+                gsum -= goutsum
+                bsum -= boutsum
+                stackstart = stackpointer - radius + div
+                sir = stack[stackstart % div]
+                routsum -= sir[0]
+                goutsum -= sir[1]
+                boutsum -= sir[2]
+                if (x == 0) {
+                    vmin[y] = (y + r1).coerceAtMost(hm) * w
+                }
+                p = x + vmin[y]
+                sir[0] = r[p]
+                sir[1] = g[p]
+                sir[2] = b[p]
+                rinsum += sir[0]
+                ginsum += sir[1]
+                binsum += sir[2]
+                rsum += rinsum
+                gsum += ginsum
+                bsum += binsum
+                stackpointer = (stackpointer + 1) % div
+                sir = stack[stackpointer]
+                routsum += sir[0]
+                goutsum += sir[1]
+                boutsum += sir[2]
+                rinsum -= sir[0]
+                ginsum -= sir[1]
+                binsum -= sir[2]
+                yi += w
+                y++
+            }
+            x++
+        }
+        Log.e("pix", w.toString() + " " + h + " " + pix.size)
+        bitmap.setPixels(pix, 0, w, 0, 0, w, h)
+        return bitmap
     }
 
     companion object {
         private const val KEY_IMAGE_URI = "edu.uw.eep523.takepicture.KEY_IMAGE_URI_1"
+        private const val KEY_IMAGE_URI_PREV = "edu.uw.eep523.takepicture.KEY_IMAGE_URI_1_PREV"
         private const val KEY_IMAGE_URI2 = "edu.uw.eep523.takepicture.KEY_IMAGE_URI_2"
+        private const val KEY_IMAGE_URI2_PREV = "edu.uw.eep523.takepicture.KEY_IMAGE_URI_2_PREV"
+        //private const val IS_MODIFIED_1 = false
+        //private const val IS_MODIFIED_2 = false
         private const val REQUEST_IMAGE_CAPTURE = 1001
         private const val REQUEST_CHOOSE_IMAGE = 1002
         private const val REQUEST_IMAGE_CAPTURE2 = 1003
         private const val REQUEST_CHOOSE_IMAGE2 = 1004
+        private const val REQUEST_SWAP_FACE = 1005
+        private const val REQUEST_BLUR_FACE = 1006
         private const val PERMISSION_REQUESTS = 1
     }
 }

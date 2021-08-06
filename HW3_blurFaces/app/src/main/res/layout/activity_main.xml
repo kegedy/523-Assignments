@@ -16,10 +16,10 @@ it must specify the Android Resource XML namespace at http://schemas.android.com
         android:layout_width="120dp"
         android:layout_height="120dp"
         android:layout_alignParentTop="true"
-        android:layout_marginTop="64dp"
+        android:layout_marginTop="24dp"
         android:layout_marginEnd="42dp"
         android:contentDescription="@string/content_description"
-        android:scaleType="fitCenter"
+        android:scaleType="fitXY"
         android:visibility="visible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
@@ -31,61 +31,53 @@ it must specify the Android Resource XML namespace at http://schemas.android.com
         android:layout_height="120dp"
         android:layout_alignParentTop="true"
         android:layout_marginStart="42dp"
-        android:layout_marginTop="64dp"
+        android:layout_marginTop="24dp"
         android:contentDescription="@string/content_description"
-        android:scaleType="fitCenter"
+        android:scaleType="fitXY"
         android:visibility="visible"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         tools:src="@tools:sample/backgrounds/scenic" />
 
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cardView"
+    <com.divyanshu.draw.widget.DrawView
+        android:id="@+id/previewPane3"
         android:layout_width="120dp"
         android:layout_height="120dp"
+        android:layout_alignParentTop="true"
         android:layout_marginStart="42dp"
-        android:layout_marginTop="420dp"
-        app:cardCornerRadius="60dp"
+        android:layout_marginTop="410dp"
+        android:contentDescription="@string/content_description"
+        android:scaleType="center"
+        android:visibility="visible"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@tools:sample/backgrounds/scenic" />
 
-        <ImageView
-            android:id="@+id/previewPane3"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@string/content_description"
-            android:scaleType="centerCrop"
-            android:src="@drawable/ic_launcher_foreground"
-            android:visibility="visible" />
-    </androidx.cardview.widget.CardView>
-
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cardView2"
+    <com.divyanshu.draw.widget.DrawView
+        android:id="@+id/previewPane4"
         android:layout_width="120dp"
         android:layout_height="120dp"
-        android:layout_marginTop="420dp"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="410dp"
         android:layout_marginEnd="42dp"
-        app:cardCornerRadius="60dp"
+        android:contentDescription="@string/content_description"
+        android:scaleType="center"
+        android:visibility="visible"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <ImageView
-            android:id="@+id/previewPane4"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@string/content_description"
-            android:scaleType="centerCrop"
-            android:src="@drawable/ic_launcher_foreground"
-            android:visibility="visible" />
-    </androidx.cardview.widget.CardView>
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@tools:sample/backgrounds/scenic" />
 
     <Button
-        android:id="@+id/startOver"
-        android:layout_width="358dp"
+        android:id="@+id/clear"
+        android:layout_width="309dp"
         android:layout_height="wrap_content"
         android:layout_gravity="start"
-        android:text="@string/start_over"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="350dp"
+        android:layout_marginEnd="24dp"
+        android:text="@string/clear"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
@@ -94,7 +86,7 @@ it must specify the Android Resource XML namespace at http://schemas.android.com
         android:layout_height="wrap_content"
         android:layout_gravity="end"
         android:layout_marginStart="24dp"
-        android:layout_marginTop="200dp"
+        android:layout_marginTop="160dp"
         android:text="@string/take_photo"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -104,7 +96,7 @@ it must specify the Android Resource XML namespace at http://schemas.android.com
         android:layout_width="155dp"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
-        android:layout_marginTop="200dp"
+        android:layout_marginTop="160dp"
         android:layout_marginEnd="24dp"
         android:text="@string/take_photo"
         app:layout_constraintEnd_toEndOf="parent"
@@ -116,7 +108,7 @@ it must specify the Android Resource XML namespace at http://schemas.android.com
         android:layout_height="wrap_content"
         android:layout_gravity="start"
         android:layout_marginStart="24dp"
-        android:layout_marginTop="248dp"
+        android:layout_marginTop="208dp"
         android:text="@string/select_photo"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -126,20 +118,35 @@ it must specify the Android Resource XML namespace at http://schemas.android.com
         android:layout_width="155dp"
         android:layout_height="wrap_content"
         android:layout_gravity="start"
-        android:layout_marginTop="248dp"
+        android:layout_marginTop="208dp"
         android:layout_marginEnd="24dp"
         android:text="@string/select_photo"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-        android:id="@+id/modify"
-        android:layout_width="155dp"
+        android:id="@+id/swap"
+        android:layout_width="309dp"
         android:layout_height="wrap_content"
         android:layout_gravity="start"
-        android:layout_marginStart="100dp"
-        android:layout_marginTop="348dp"
-        android:text="@string/modify"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="256dp"
+        android:layout_marginEnd="24dp"
+        android:text="@string/swap"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/blur"
+        android:layout_width="309dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="302dp"
+        android:layout_marginEnd="24dp"
+        android:text="@string/blur"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
