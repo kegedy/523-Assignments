@@ -173,17 +173,15 @@ class MainActivity : AppCompatActivity() {
 
         val draw3 = findViewById<DrawView>(R.id.previewPane3)
         val draw4 = findViewById<DrawView>(R.id.previewPane4)
-        val imageBitmap = detectInImage(imageUri)
-        val imageBitmap2 = detectInImage(imageUri2)
 
         if (isModified) {
             draw3?.clearCanvas()
-            if (imageUriPrev != null) draw3.background= BitmapDrawable(resources, imageBitmap);
+            if (imageUriPrev != null) tryReloadDraw(draw4, imageUriPrev)
             isModified = false
         }
         if (isModified2) {
             draw4?.clearCanvas()
-            if (imageUri2Prev != null) draw4.background= BitmapDrawable(resources, imageBitmap2);
+            if (imageUri2Prev != null) tryReloadDraw(draw4, imageUri2Prev)
             isModified2 = false
         }
     }
@@ -255,8 +253,8 @@ class MainActivity : AppCompatActivity() {
         val draw4 = findViewById<DrawView>(R.id.previewPane4)
 
         super.onActivityResult(requestCode, resultCode, data)
-        Log.i("Kevin",requestCode.toString())
-        Log.i("Kevin",resultCode.toString())
+        Log.i("Kevin","requestCode: $requestCode")
+        Log.i("Kevin","resultCode: $resultCode")
         if (resultCode != Activity.RESULT_OK) {
             return
         }
@@ -311,7 +309,7 @@ class MainActivity : AppCompatActivity() {
         view.setBackgroundColor(0)
         val imageBitmap = detectInImage(passedImageUri)
         try {
-            view?.setImageBitmap(imageBitmap)
+            view?.setImageBitmap(scaleBitmapDown(imageBitmap!!,600))
         } catch (e: IOException) { }
     }
 
@@ -319,7 +317,7 @@ class MainActivity : AppCompatActivity() {
         draw.setBackgroundColor(0)
         val imageBitmap = detectInImage(passedImageUri)
         try {
-            draw.background= BitmapDrawable(resources, imageBitmap)
+            draw.background= BitmapDrawable(resources, scaleBitmapDown(imageBitmap!!,600))
         } catch (e: IOException) { }
     }
 
@@ -331,18 +329,40 @@ class MainActivity : AppCompatActivity() {
         return bitmapMutable
     }
 
+    // source: https://firebase.google.com/docs/ml/android/recognize-landmarks
+    private fun scaleBitmapDown(bitmap: Bitmap, maxDimension: Int): Bitmap {
+        val originalWidth = bitmap.width
+        val originalHeight = bitmap.height
+        var resizedWidth = maxDimension
+        var resizedHeight = maxDimension
+        if (originalHeight > originalWidth) {
+            resizedHeight = maxDimension
+            resizedWidth =
+                (resizedHeight * originalWidth.toFloat() / originalHeight.toFloat()).toInt()
+        } else if (originalWidth > originalHeight) {
+            resizedWidth = maxDimension
+            resizedHeight =
+                (resizedWidth * originalHeight.toFloat() / originalWidth.toFloat()).toInt()
+        } else if (originalHeight == originalWidth) {
+            resizedHeight = maxDimension
+            resizedWidth = maxDimension
+        }
+        return Bitmap.createScaledBitmap(bitmap, resizedWidth, resizedHeight, false)
+    }
+
     private fun bitmapFaceSwap() {
         var bitmap: Bitmap? = imageUri?.let { bitmapMutable(it) }
         var bitmap2: Bitmap? = imageUri2?.let { bitmapMutable(it) }
-        Log.i("Kevin",imageUri.toString())
-        faceDetection(bitmap?.let{ Bitmap.createScaledBitmap(it, it.width/2, it.height/2, true) })
+        Log.i("Kevin","Begin bitmapFaceSwap")
+        Log.i("Kevin","imageUri: $imageUri")
+        faceDetection(bitmap!!)
 //        var (centerX, centerY, radius) = faceDetection(bitmap)
         //something
 
     }
 
     private fun processFaces(faces: List<FirebaseVisionFace>): FirebaseVisionFace? {
-        Log.i("Kevin",faces.isEmpty().toString())
+        Log.i("Kevin","faces: $faces")
         if (faces.isEmpty()) return null
 
         val face = faces[0]
@@ -364,31 +384,33 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun faceDetection(mSelectedImage: Bitmap?) { //Array<Float>
-        Log.i("Kevin","faceDetection")
+        Log.i("Kevin","Begin faceDetection")
+        Log.i("Kevin","mSelectedImage: $mSelectedImage")
         val image = FirebaseVisionImage.fromBitmap(mSelectedImage!!)
+        Log.i("Kevin","image: $image")
+        val draw4 = findViewById<DrawView>(R.id.previewPane4)
+        draw4.background= BitmapDrawable(resources, image.bitmap);
 
-        
         val options = FirebaseVisionFaceDetectorOptions.Builder()
-            .setPerformanceMode(FirebaseVisionFaceDetectorOptions.FAST)
-            .setLandmarkMode(FirebaseVisionFaceDetectorOptions.ALL_LANDMARKS)
-            .setContourMode(FirebaseVisionFaceDetectorOptions.ALL_CONTOURS)
-            .setClassificationMode(FirebaseVisionFaceDetectorOptions.ALL_CLASSIFICATIONS)
-            .build()
-        val detector = FirebaseVision.getInstance().getVisionFaceDetector(options) //options
+            .setPerformanceMode(FirebaseVisionFaceDetectorOptions.FAST).build()
+        val detector = FirebaseVision.getInstance().getVisionFaceDetector(options)
+//        val detector = FirebaseVision.getInstance().visionFaceDetector //options
+
         detector.detectInImage(image)
             .addOnSuccessListener { faces ->
                 processFaces(faces)
-                Log.i("Kevin","Success")
+                Log.i("Kevin","detector Success")
             }
             .addOnFailureListener { e -> // Task failed with an exception
                 e.printStackTrace()
-                Log.i("Kevin","Failure")
+                Log.i("Kevin","detector Failure")
             }
     }
 
     private fun bitmapBlurWrapper() {
         val draw3 = findViewById<DrawView>(R.id.previewPane3)
         val draw4 = findViewById<DrawView>(R.id.previewPane4)
+        // java.lang.IllegalArgumentException: Hardware bitmaps are always immutable
         var bitmap: Bitmap? = imageUri?.let { bitmapMutable(it) }
         var bitmap2: Bitmap? = imageUri2?.let { bitmapMutable(it) }
 
