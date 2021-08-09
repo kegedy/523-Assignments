@@ -8,11 +8,13 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.provider.MediaStore
 import android.util.Log
 import android.view.MotionEvent
@@ -22,21 +24,14 @@ import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.set
 import com.divyanshu.draw.widget.DrawView
-import com.google.firebase.FirebaseApp
-import com.google.firebase.ml.vision.FirebaseVision
-import com.google.firebase.ml.vision.common.FirebaseVisionImage
-import com.google.firebase.ml.vision.face.FirebaseVisionFace
-import com.google.firebase.ml.vision.face.FirebaseVisionFaceDetectorOptions
-import com.google.firebase.ml.vision.face.FirebaseVisionFaceLandmark
-import java.io.FileReader
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.*
 import java.io.IOException
-import java.lang.Math.pow
 import java.util.*
 import kotlin.math.abs
-import kotlin.math.pow
 import kotlin.math.roundToInt
-import kotlin.math.sqrt
 
 
 class MainActivity : AppCompatActivity() {
@@ -44,12 +39,16 @@ class MainActivity : AppCompatActivity() {
     // https://stackoverflow.com/questions/13119582/immutable-bitmap-crash-error
 
     private var isLandScape: Boolean = false
+    // set #1
     private var imageUri: Uri? = null
     private var imageUriPrev: Uri? = null
+    private var isModified: Boolean = false
+    private var face: Face? = null
+    // set #2
     private var imageUri2: Uri? = null
     private var imageUri2Prev: Uri? = null
-    private var isModified: Boolean = false
     private var isModified2: Boolean = false
+    private var face2: Face? = null
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,10 +66,12 @@ class MainActivity : AppCompatActivity() {
             imageUriPrev = it.getParcelable(KEY_IMAGE_URI_PREV)
             imageUri2 = it.getParcelable(KEY_IMAGE_URI2)
             imageUri2Prev = it.getParcelable(KEY_IMAGE_URI2_PREV)
+            isModified = it.getBoolean("IS_MODIFIED_1", true)
+            isModified2 = it.getBoolean("IS_MODIFIED_2", true)
         }
 
         // IMAGE PLACEHOLDERS
-        imagePlaces()
+        placeHolders()
 
         // CLICK LISTENERS
         val btnCamera = findViewById<Button>(R.id.btn_camera)
@@ -82,7 +83,7 @@ class MainActivity : AppCompatActivity() {
         val btnGallery2 = findViewById<Button>(R.id.btn_gallery2)
         btnGallery2.setOnClickListener { startChooseImageIntentForResult(btnGallery2) }
         val swap = findViewById<Button>(R.id.swap)
-        swap.setOnClickListener { bitmapFaceSwap() } // update
+        swap.setOnClickListener { faceSwapWrapper() } // update
         val blur = findViewById<Button>(R.id.blur)
         blur.setOnClickListener { bitmapBlurWrapper() } // update
         val clear = findViewById<Button>(R.id.clear)
@@ -154,7 +155,7 @@ class MainActivity : AppCompatActivity() {
         return false
     }
 
-    private fun imagePlaces() {
+    private fun placeHolders() {
         val pane = findViewById<ImageView>(R.id.previewPane)
         pane.setBackgroundResource(R.drawable.ic_launcher_background)
         pane.setImageResource(R.drawable.ic_launcher_foreground)
@@ -165,18 +166,24 @@ class MainActivity : AppCompatActivity() {
         draw3.setBackgroundResource(R.drawable.ic_launcher_background)
         val draw4 = findViewById<DrawView>(R.id.previewPane4)
         draw4.setBackgroundResource(R.drawable.ic_launcher_background)
+        imageRefresh()
     }
 
     private fun imageRefresh() {
-        Log.i("Kevin",imageUri.toString())
-        Log.i("Kevin",imageUriPrev.toString())
-
+        val pane = findViewById<ImageView>(R.id.previewPane)
+        val pane2 = findViewById<ImageView>(R.id.previewPane2)
         val draw3 = findViewById<DrawView>(R.id.previewPane3)
         val draw4 = findViewById<DrawView>(R.id.previewPane4)
 
+        if (imageUri != null) {
+            tryReloadImage(pane,imageUri)
+        }
+        if (imageUri2 != null) {
+            tryReloadImage(pane2,imageUri2)
+        }
         if (isModified) {
             draw3?.clearCanvas()
-            if (imageUriPrev != null) tryReloadDraw(draw4, imageUriPrev)
+            if (imageUriPrev != null) tryReloadDraw(draw3, imageUriPrev)
             isModified = false
         }
         if (isModified2) {
@@ -186,8 +193,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
-
     public override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         with(outState) {
@@ -195,6 +200,8 @@ class MainActivity : AppCompatActivity() {
             putParcelable(KEY_IMAGE_URI_PREV, imageUriPrev)
             putParcelable(KEY_IMAGE_URI2, imageUri2)
             putParcelable(KEY_IMAGE_URI2_PREV, imageUri2Prev)
+            putBoolean("IS_MODIFIED_1", true)
+            putBoolean("IS_MODIFIED_2", true)
         }
     }
 
@@ -287,6 +294,7 @@ class MainActivity : AppCompatActivity() {
 //                // something
 //            }
         }
+
     }
 
     private fun detectInImage(passedImageUri: Uri?): Bitmap? {
@@ -298,7 +306,7 @@ class MainActivity : AppCompatActivity() {
             imageBitmap = if (Build.VERSION.SDK_INT < 29) {
                 MediaStore.Images.Media.getBitmap(contentResolver, passedImageUri)
             } else {
-                val source = ImageDecoder.createSource(contentResolver, passedImageUri!!)
+                val source = ImageDecoder.createSource(contentResolver, passedImageUri)
                 ImageDecoder.decodeBitmap(source)
             }
         } catch (e: IOException) { }
@@ -350,80 +358,154 @@ class MainActivity : AppCompatActivity() {
         return Bitmap.createScaledBitmap(bitmap, resizedWidth, resizedHeight, false)
     }
 
-    private fun bitmapFaceSwap() {
-        var bitmap: Bitmap? = imageUri?.let { bitmapMutable(it) }
-        var bitmap2: Bitmap? = imageUri2?.let { bitmapMutable(it) }
-        Log.i("Kevin","Begin bitmapFaceSwap")
-        Log.i("Kevin","imageUri: $imageUri")
-        faceDetection(bitmap!!)
-//        var (centerX, centerY, radius) = faceDetection(bitmap)
-        //something
-
-    }
-
-    private fun processFaces(faces: List<FirebaseVisionFace>): FirebaseVisionFace? {
-        Log.i("Kevin","faces: $faces")
-        if (faces.isEmpty()) return null
-
-        val face = faces[0]
-        val centerX = (face.boundingBox.centerX().toFloat())
-        val centerY = (face.boundingBox.centerY().toFloat())
-        var leftEyePosX = 0F
-        var leftEyePosY = 0F
-        val leftEye = face.getLandmark(FirebaseVisionFaceLandmark.LEFT_EYE)
-
-        leftEye?.let {
-            leftEyePosX = leftEye.position.x
-            leftEyePosY = leftEye.position.y
-        }
-        Log.i("Kevin",centerX.toString())
-        Log.i("Kevin",centerY.toString())
-//        val radius = sqrt((leftEyePosX - centerX).pow(2) + (leftEyePosY - centerY).pow(2))
-        return face
-    }
-
-
-    private fun faceDetection(mSelectedImage: Bitmap?) { //Array<Float>
-        Log.i("Kevin","Begin faceDetection")
-        Log.i("Kevin","mSelectedImage: $mSelectedImage")
-        val image = FirebaseVisionImage.fromBitmap(mSelectedImage!!)
-        Log.i("Kevin","image: $image")
+    private fun bitmapSwap(passedFace: Face, passedFace2: Face) {
+        Log.i("Kevin","SUCCESSSSSS!!!!!")
+        var imageBitmap: Bitmap? = imageUri?.let { bitmapMutable(it)!! }
+        var imageBitmap2: Bitmap? = imageUri2?.let { bitmapMutable(it)!! }
+        val draw3 = findViewById<DrawView>(R.id.previewPane3)
         val draw4 = findViewById<DrawView>(R.id.previewPane4)
-        draw4.background= BitmapDrawable(resources, image.bitmap);
 
-        val options = FirebaseVisionFaceDetectorOptions.Builder()
-            .setPerformanceMode(FirebaseVisionFaceDetectorOptions.FAST).build()
-        val detector = FirebaseVision.getInstance().getVisionFaceDetector(options)
-//        val detector = FirebaseVision.getInstance().visionFaceDetector //options
+        // passedFace
+        val passedFaceX = passedFace.boundingBox.centerX()
+        val passedFaceY = passedFace.boundingBox.centerY()
+        var passedFaceWidth = passedFace.boundingBox.width()
+        var passedFaceHeight = passedFace.boundingBox.height()
+        if (passedFaceWidth > passedFaceHeight) passedFaceHeight = passedFaceWidth
+        else passedFaceWidth = passedFaceHeight
 
-        detector.detectInImage(image)
+        // passedFace2
+        val passedFace2X = passedFace2.boundingBox.centerX()
+        val passedFace2Y = passedFace2.boundingBox.centerY()
+        var passedFace2Width = passedFace2.boundingBox.width()
+        var passedFace2Height = passedFace2.boundingBox.height()
+        if (passedFace2Width > passedFace2Height) passedFace2Height = passedFace2Width
+        else passedFace2Width = passedFace2Height
+
+        // create bitmaps of faces
+        var tmpBitmap = imageBitmap?.let {
+            Bitmap.createBitmap(it,
+                passedFaceX - (passedFaceWidth /2),
+                passedFaceY - (passedFaceHeight /2),
+                passedFaceWidth, passedFaceHeight)}
+        var tmpBitmap2 = imageBitmap2?.let {
+            Bitmap.createBitmap(it,
+                passedFace2X - (passedFace2Width /2),
+                passedFace2Y - (passedFace2Height /2),
+                passedFace2Width, passedFace2Height)}
+
+        // face must be scaled to fit other image
+        tmpBitmap = scaleBitmapDown(tmpBitmap!!, passedFace2Width)
+        tmpBitmap2 = scaleBitmapDown(tmpBitmap2!!, passedFaceWidth)
+
+        // replace imageBitmap pixels
+        var size: Int = tmpBitmap2!!.width * tmpBitmap2.height
+        var arr = IntArray(size){0}
+        tmpBitmap2.getPixels(arr,
+            0,
+            passedFaceWidth,
+            0,
+            0,
+            passedFaceWidth,
+            passedFaceHeight
+        )
+        imageBitmap!!.setPixels(arr,
+            0,
+            passedFaceWidth,
+            passedFaceX - (passedFaceWidth /2),
+            passedFaceY - (passedFaceHeight /2),
+            passedFaceWidth,
+            passedFaceHeight
+        )
+        isModified = true
+
+        // replace imageBitmap2 pixels
+        size = tmpBitmap!!.width * tmpBitmap!!.height
+        arr = IntArray(size){0}
+        tmpBitmap.getPixels(arr,
+            0,
+            passedFace2Width,
+            0,
+            0,
+            passedFace2Width,
+            passedFace2Height
+        )
+        imageBitmap2!!.setPixels(arr,
+            0,
+            passedFace2Width,
+            passedFace2X - (passedFace2Width /2),
+            passedFace2Y - (passedFace2Height /2),
+            passedFace2Width,
+            passedFace2Height
+        )
+        isModified2 = true
+
+        // Update drawView
+        draw3.background = BitmapDrawable(resources, imageBitmap)
+        draw4.background = BitmapDrawable(resources, imageBitmap2)
+
+        // recycle
+//        imageBitmap.recycle()
+//        imageBitmap2.recycle()
+    }
+
+    private fun faceSwapWrapper() {
+        Log.i("Kevin","Begin faceSwapWrapper")
+        if (imageUriPrev != null && imageUri2Prev != null) {
+            faceDetection()
+        }
+    }
+
+    private fun faceDetection() {
+        val inputImage = imageUriPrev?.let{ InputImage.fromBitmap(detectInImage(it), 0) }
+        val inputImage2 = imageUri2Prev?.let{ InputImage.fromBitmap(detectInImage(it), 0) }
+
+        val highAccuracyOpts = FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE).build()
+        val detector = FaceDetection.getClient(highAccuracyOpts)
+
+        detector.process(inputImage)
+
+
             .addOnSuccessListener { faces ->
-                processFaces(faces)
-                Log.i("Kevin","detector Success")
-            }
-            .addOnFailureListener { e -> // Task failed with an exception
+                Log.i("Kevin","inputImage detector: success")
+                if (faces.isNotEmpty()) face = faces[0]
+                if (face != null && face2 != null) bitmapSwap(face!!, face2!!)
+            }.addOnFailureListener { e -> // Task failed with an exception
                 e.printStackTrace()
-                Log.i("Kevin","detector Failure")
+                Log.i("Kevin","inputImage detector: failure")
+            }
+        detector.process(inputImage2)
+            .addOnSuccessListener { faces ->
+                Log.i("Kevin","inputImage2 detector: success")
+                if (faces.isNotEmpty()) face2 = faces[0]
+                if (face != null && face2 != null) bitmapSwap(face!!, face2!!)
+            }.addOnFailureListener { e -> // Task failed with an exception
+                e.printStackTrace()
+                Log.i("Kevin","inputImage2 detector: failure")
             }
     }
 
     private fun bitmapBlurWrapper() {
+        Log.i("Kevin","Begin bitmapBlurWrapper")
         val draw3 = findViewById<DrawView>(R.id.previewPane3)
         val draw4 = findViewById<DrawView>(R.id.previewPane4)
         // java.lang.IllegalArgumentException: Hardware bitmaps are always immutable
-        var bitmap: Bitmap? = imageUri?.let { bitmapMutable(it) }
-        var bitmap2: Bitmap? = imageUri2?.let { bitmapMutable(it) }
+        val bitmap: Bitmap? = imageUri?.let{ bitmapMutable(it)!! }
+        val bitmap2: Bitmap? = imageUri2?.let{ bitmapMutable(it)!! }
 
         if (imageUri != null) {
-            var drawBitmap = bitmap?.let {bitmapBlur(it, 1F,100)}
+            val drawBitmap = bitmap?.let {bitmapBlur(it, 1F,100)}
             draw3?.background = BitmapDrawable(resources, drawBitmap)
             isModified = true
         }
         if (imageUri2 != null) {
-            var drawBitmap2 = bitmap2?.let {bitmapBlur(it, 1F,100)}
+            val drawBitmap2 = bitmap2?.let {bitmapBlur(it, 1F,100)}
             draw4?.background = BitmapDrawable(resources, drawBitmap2)
             isModified2 = true
         }
+        // recycle
+//        bitmap?.recycle()
+//        bitmap2?.recycle()
     }
 
     private fun bitmapBlur(sentBitmap: Bitmap, scale: Float, radius: Int): Bitmap? {
@@ -640,8 +722,8 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_IMAGE_URI_PREV = "edu.uw.eep523.takepicture.KEY_IMAGE_URI_1_PREV"
         private const val KEY_IMAGE_URI2 = "edu.uw.eep523.takepicture.KEY_IMAGE_URI_2"
         private const val KEY_IMAGE_URI2_PREV = "edu.uw.eep523.takepicture.KEY_IMAGE_URI_2_PREV"
-        //private const val IS_MODIFIED_1 = false
-        //private const val IS_MODIFIED_2 = false
+        private const val IS_MODIFIED_1 = false
+        private const val IS_MODIFIED_2 = false
         private const val REQUEST_IMAGE_CAPTURE = 1001
         private const val REQUEST_CHOOSE_IMAGE = 1002
         private const val REQUEST_IMAGE_CAPTURE2 = 1003

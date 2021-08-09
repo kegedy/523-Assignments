@@ -43,8 +43,10 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
     implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'com.github.divyanshub024:AndroidDraw:v0.1'
-    //noinspection OutdatedLibrary
-    implementation 'com.google.firebase:firebase-ml-vision:24.0.2'
+    implementation 'com.google.mlkit:face-detection:16.1.2'
+    implementation 'com.google.android.gms:play-services-mlkit-face-detection:16.2.0'
+
+
 }
 apply plugin: 'com.google.gms.google-services'
 
