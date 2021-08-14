@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">HW4_sensors</string>
+    <string name="accelerometer_z_values">z-axis</string>
+    <string name="accelerometer_y_values">y-axis</string>
+    <string name="accelerometer_x_values">x-axis</string>
 </resources>
