@@ -19,22 +19,25 @@ import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
 
-//    private  lateinit var mSeriesXaccel: LineGraphSeries<DataPoint>
-//    private lateinit var mSeriesYaccel: LineGraphSeries<DataPoint>
-//    private lateinit var mSeriesZaccel: LineGraphSeries<DataPoint>
     private lateinit var thisSeries: LineGraphSeries<DataPoint>
-
     private lateinit var mSensorManager: SensorManager
     private lateinit var mSensor: Sensor
     private lateinit var mSensorG: Sensor
 
-    private val linearAcceleration: Array<Float> = arrayOf(0.0f,0.0f,0.0f)
     private val sizeN: Int = 5
-    private val sizeM: Int = 50 // (sampling rate = 0.01 seconds -> total window = 0.5 seconds
+    private val sizeM: Int = 5
+    private val sizeL: Int = 20
+
     var slidingWindow = FloatArray(sizeN) { 0.0f }
     var detectWindow = FloatArray(sizeM) {0.0f}
-    private var i: Int = 0
+    var activationWindow = FloatArray(sizeL) {0.0f}
+    private val linearAcceleration: Array<Float> = arrayOf(0.0f,0.0f,0.0f)
+
+    private var iter: Int = 0
     private var detectCounter: Int = 0
+    private var activated: Boolean = false
+    private val magThresh: Int = 15
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,15 +50,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         } else { null!! } // Sorry, there are no accelerometers on your device.
         mSensorManager.registerListener(this, mSensor, 10000)
 
-//        mSeriesXaccel = LineGraphSeries()
-//        mSeriesYaccel = LineGraphSeries()
-//        mSeriesZaccel = LineGraphSeries()
-//        val mGraphX = findViewById<GraphView>(R.id.mGraphX)
-//        val mGraphY = findViewById<GraphView>(R.id.mGraphY)
-//        val mGraphZ = findViewById<GraphView>(R.id.mGraphZ)
-//        initGraphRT(mGraphX, mSeriesXaccel)
-//        initGraphRT(mGraphY, mSeriesYaccel)
-//        initGraphRT(mGraphZ, mSeriesZaccel)
         thisSeries = LineGraphSeries()
         val mGraph = findViewById<GraphView>(R.id.mGraph)
         initGraphRT(mGraph, thisSeries)
@@ -83,17 +77,26 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         linearAcceleration[2] = event.values[2] // mostly ignored; this direction accounts for gravity
 
         val xval = System.currentTimeMillis()/1000.toDouble()//graphLastXValue += 0.1
-//        mSeriesXaccel.appendData(DataPoint(xval, linearAcceleration[0].toDouble()), true, 50)
-//        mSeriesYaccel.appendData(DataPoint(xval, linearAcceleration[1].toDouble()), true, 50)
-//        mSeriesZaccel.appendData(DataPoint(xval, linearAcceleration[2].toDouble()), true, 50)
         val mag: Float = magnitude(linearAcceleration)
         val mean: Float = mean(linearAcceleration)
+
         addToWindow(mag-mean, slidingWindow)
-        addToWindow(movingAVG(i), detectWindow)
-        thisSeries.appendData(DataPoint(xval, movingAVG(i).toDouble()), true, 105)
-        if (i<sizeN) i++
-//        Log.i("Kevin","$i")
-//        Log.i("Kevin",linearAcceleration[0].toString()+linearAcceleration[1].toString()+linearAcceleration[2].toString())
+        addToWindow(movingAVG(iter), detectWindow)
+        addToWindow(if (positiveSlopeThresh()) 0.0f else 1.0f, activationWindow)
+        thisSeries.appendData(DataPoint(xval, movingAVG(iter).toDouble()), true, 105)
+
+        activityStart()
+        if (activated) {
+            updateTextView(R.id.activation, "Activity Started")
+            clearWindow(detectWindow)
+        }
+        if (positiveSlopeThresh() && activated) {
+            detectCounter =  increment(detectCounter)
+            updateTextView(R.id.counter, "counter $detectCounter/10")
+            clearWindow(detectWindow)
+        }
+        if (iter<sizeN) iter++
+//        Log.i("Kevin","$iter")
     }
 
 
@@ -182,6 +185,32 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         } else {
             return slidingWindow.sum()/slidingWindow.size
         }
+    }
+
+    private fun positiveSlopeThresh(): Boolean {
+        // Conditions:
+        //    1. Rising slope for last 5 samples (0.05 seconds)
+        //    2. Cross 15 normalized magnitude (m/s^2)
+        var cond: Boolean = true
+        for (i in 0 until (detectWindow.size-1)) {
+            cond = cond && (detectWindow[i+1]>detectWindow[i])
+        }
+        cond = cond && (detectWindow.minOrNull()!! <magThresh)
+        cond = cond && (detectWindow.maxOrNull()!! >magThresh)
+        return cond
+    }
+
+    private fun clearWindow(window: FloatArray) {
+        for (i in window.indices) window[i] = 0.0f
+    }
+
+    private fun increment(counter:Int): Int {
+        if (counter+1 > 10) return 1
+        else return counter+1
+    }
+
+    private fun activityStart() {
+        return activationWindow.sum() >= 2
     }
 
     fun updateTextView(passedID:Int, str:String?) {
