@@ -47,7 +47,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             null!!
         }
 
-        mSensorManager.registerListener(this, mSensor, 40000)
+        mSensorManager.registerListener(this, mSensor, 10000)
 
 //        mSeriesXaccel = LineGraphSeries()
 //        mSeriesYaccel = LineGraphSeries()
@@ -89,7 +89,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 //        mSeriesXaccel.appendData(DataPoint(xval, linearAcceleration[0].toDouble()), true, 50)
 //        mSeriesYaccel.appendData(DataPoint(xval, linearAcceleration[1].toDouble()), true, 50)
 //        mSeriesZaccel.appendData(DataPoint(xval, linearAcceleration[2].toDouble()), true, 50)
-        val mag: Float = sensorMagnitude(linearAcceleration)
+        val mag: Float = magnitude(linearAcceleration)
         val mean: Float = mean(slidingWindow)
         addToWindow(mag-mean)
         mSeries.appendData(DataPoint(xval, movingAVG(i).toDouble()), true, 50)
@@ -160,7 +160,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         slidingWindow[slidingWindow.size - 1] = x
     }
 
-    private fun sensorMagnitude(linearAcceleration:Array<Float>): Float{
+    private fun magnitude(linearAcceleration:Array<Float>): Float{
         return sqrt(linearAcceleration[0].pow(2) + linearAcceleration[1].pow(2) + linearAcceleration[2].pow(2))
     }
 
