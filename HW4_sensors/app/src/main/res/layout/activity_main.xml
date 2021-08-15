@@ -8,6 +8,10 @@
     tools:context=".MainActivity">
 
     <LinearLayout
+        android:layout_height="40dp"
+        android:layout_width="match_parent">
+    </LinearLayout>
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
         <TextView
@@ -25,16 +29,21 @@
             android:layout_height="wrap_content"
             android:id="@+id/counter" android:layout_weight="1"/>
     </LinearLayout>
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@android:color/darker_gray"/>
+
+<!--    <View-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="1dp"-->
+<!--        android:background="@android:color/darker_gray"/>-->
+    <LinearLayout
+        android:layout_height="40dp"
+        android:layout_width="match_parent">
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
         <TextView
-            android:text="@string/accelerometer_x_values"
+            android:text="Normalized Magnitude"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:id="@+id/textX" android:layout_weight="1"/>
@@ -44,36 +53,5 @@
         android:layout_weight="1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:id="@+id/mGraphX"/>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        <TextView
-            android:text="@string/accelerometer_y_values"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content" android:id="@+id/textY" android:layout_weight="1"/>
-
-    </LinearLayout>
-    <com.jjoe64.graphview.GraphView
-        android:layout_weight="1"
-
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/mGraphY"/>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        <TextView
-            android:text="@string/accelerometer_z_values"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content" android:id="@+id/textZ" android:layout_weight="1"/>
-
-    </LinearLayout>
-    <com.jjoe64.graphview.GraphView
-        android:layout_weight="1"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/mGraphZ"/>
+        android:id="@+id/mGraph"/>
 </LinearLayout>

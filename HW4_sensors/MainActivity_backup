@@ -13,6 +13,7 @@ import com.jjoe64.graphview.DefaultLabelFormatter
 import com.jjoe64.graphview.GraphView
 import com.jjoe64.graphview.series.DataPoint
 import com.jjoe64.graphview.series.LineGraphSeries
+import java.lang.Math.pow
 import java.text.NumberFormat
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -30,8 +31,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     private val linearAcceleration: Array<Float> = arrayOf(0.0f,0.0f,0.0f)
     var slidingWindow = FloatArray(5) { 0.0f }
-    var filterWindow = FloatArray(5) { 0.0f }
     private var i: Int = 0
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,9 +90,10 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 //        mSeriesYaccel.appendData(DataPoint(xval, linearAcceleration[1].toDouble()), true, 50)
 //        mSeriesZaccel.appendData(DataPoint(xval, linearAcceleration[2].toDouble()), true, 50)
         val mag: Float = sensorMagnitude(linearAcceleration)
-        val mean: Float = mean(linearAcceleration)
-        mSeries.appendData(DataPoint(xval, (mag-mean).toDouble()), true, 50)
-        addToWindow(mag)
+        val mean: Float = mean(slidingWindow)
+        addToWindow(mag-mean)
+        mSeries.appendData(DataPoint(xval, movingAVG(i).toDouble()), true, 50)
+        if (i<5) i++
     }
 
 
@@ -162,17 +164,26 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         return sqrt(linearAcceleration[0].pow(2) + linearAcceleration[1].pow(2) + linearAcceleration[2].pow(2))
     }
 
-    private fun mean(linearAcceleration: Array<Float>): Float {
-        return slidingWindow.sum()/slidingWindow.size
+    private fun mean(linearAcceleration:FloatArray): Float {
+        return (linearAcceleration[0] + linearAcceleration[1] + linearAcceleration[2])/3
     }
 
-//    private fun normalize(mag)
+    private fun movingAVG(i:Int): Float {
+        var sum: Float = 0.0f
+        if (i<5) {
+            for (j in 0..i) sum += slidingWindow[j]
+            return sum/i
+        } else {
+            return slidingWindow.sum()/slidingWindow.size
+        }
+    }
 
     fun updateTextView(passedID:Int, str:String?) {
         val textView = findViewById<View>(passedID) as TextView
         textView.text = str
     }
 }
+
 
 
 
