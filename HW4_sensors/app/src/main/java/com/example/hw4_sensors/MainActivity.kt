@@ -4,11 +4,14 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import androidx.appcompat.app.AppCompatActivity
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.Button
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import com.jjoe64.graphview.DefaultLabelFormatter
 import com.jjoe64.graphview.GraphView
 import com.jjoe64.graphview.series.DataPoint
@@ -16,6 +19,7 @@ import com.jjoe64.graphview.series.LineGraphSeries
 import java.text.NumberFormat
 import kotlin.math.pow
 import kotlin.math.sqrt
+
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
 
@@ -28,16 +32,18 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private val sizeM: Int = 5
     private val sizeL: Int = 20
 
-    var slidingWindow = FloatArray(sizeN) { 0.0f }
-    var detectWindow = FloatArray(sizeM) {0.0f}
-    var activationWindow = FloatArray(sizeL) {0.0f}
+    var slidingWindow = FloatArray(sizeN) { 0.0f } // smooths the normalized magnitude response
+    var detectWindow = FloatArray(sizeM) {0.0f}   // sets window size for threshold crossing
+    var activationWindow = FloatArray(sizeL) {0.0f}  // sets window size for two consecutive detections
     private val linearAcceleration: Array<Float> = arrayOf(0.0f,0.0f,0.0f)
 
     private var iter: Int = 0
     private var detectCounter: Int = 0
-    private var activated: Boolean = false
     private val magThresh: Int = 15
-
+    private var goal: Int = 10
+    private var activated: Boolean = false
+    private var userDefined: Boolean = false
+    private val tg: ToneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,6 +59,16 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         thisSeries = LineGraphSeries()
         val mGraph = findViewById<GraphView>(R.id.mGraph)
         initGraphRT(mGraph, thisSeries)
+
+        // button listeners
+        val stopBtn = findViewById<Button>(R.id.stop)
+        stopBtn.setOnClickListener { stopActivity() }
+        val userBtn = findViewById<Button>(R.id.user_defined)
+        userBtn.setOnClickListener { toggleUserDefined() }
+
+        // tone generator
+        // source: https://www.programcreek.com/java-api-examples/?api=android.media.ToneGenerator
+
     }
 
     override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
@@ -82,21 +98,13 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
         addToWindow(mag-mean, slidingWindow)
         addToWindow(movingAVG(iter), detectWindow)
-        addToWindow(if (positiveSlopeThresh()) 0.0f else 1.0f, activationWindow)
+        addToWindow(if (positiveSlopeThresh()) 1.0f else 0.0f, activationWindow)
         thisSeries.appendData(DataPoint(xval, movingAVG(iter).toDouble()), true, 105)
 
         activityStart()
-        if (activated) {
-            updateTextView(R.id.activation, "Activity Started")
-            clearWindow(detectWindow)
-        }
-        if (positiveSlopeThresh() && activated) {
-            detectCounter =  increment(detectCounter)
-            updateTextView(R.id.counter, "counter $detectCounter/10")
-            clearWindow(detectWindow)
-        }
+        updateViews()
         if (iter<sizeN) iter++
-//        Log.i("Kevin","$iter")
+//      Log.i("Kevin","$iter")
     }
 
 
@@ -197,6 +205,10 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         }
         cond = cond && (detectWindow.minOrNull()!! <magThresh)
         cond = cond && (detectWindow.maxOrNull()!! >magThresh)
+        if (cond) {
+            Log.i("Kevin","detectWindow.minOrNull() = " + detectWindow.minOrNull().toString())
+            Log.i("Kevin","detectWindow.maxOrNull() = " + detectWindow.maxOrNull().toString())
+        }
         return cond
     }
 
@@ -205,18 +217,58 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     }
 
     private fun increment(counter:Int): Int {
-        if (counter+1 > 10) return 1
+        if (counter+1 > goal) return 1
         else return counter+1
     }
 
     private fun activityStart() {
-        return activationWindow.sum() >= 2
+        if (activationWindow.sum() >= 2 && !activated) {
+            Log.i("Kevin","activationWindow.sum() = " + activationWindow.sum().toString())
+            activated = true
+            clearWindow(activationWindow)
+            clearWindow(detectWindow)
+        }
     }
 
-    fun updateTextView(passedID:Int, str:String?) {
+    private fun updateTextView(passedID:Int, str:String?) {
         val textView = findViewById<View>(passedID) as TextView
         textView.text = str
     }
+
+    private fun updateButtonText(passedID: Int, str:String?) {
+        val buttonView = findViewById<View>(passedID) as Button
+        buttonView.text = str
+    }
+
+    private fun stopActivity() {
+        activated=false
+    }
+
+    private fun toggleUserDefined() {
+        userDefined = !userDefined
+    }
+
+    private fun updateViews() {
+        updateTextView(R.id.activation, "activation=$activated")
+        updateTextView(R.id.user_defined_text, "user_defined=$userDefined")
+        if (positiveSlopeThresh() && activated) {
+            detectCounter =  increment(detectCounter)
+            clearWindow(detectWindow)
+            if (detectCounter == goal) tg.startTone(ToneGenerator.TONE_PROP_BEEP, 100)
+        }
+        if (userDefined) {
+            updateButtonText(R.id.user_defined, "DISABLE")
+            val thisView = findViewById<View>(R.id.textNumber) as TextView
+            goal = Integer.parseInt(thisView.text.toString())
+            updateTextView(R.id.counter, "counter $detectCounter/$goal")
+        } else {
+            updateButtonText(R.id.user_defined, "ENABLE")
+            updateTextView(R.id.counter, "counter $detectCounter")
+        }
+    }
+    // TODO: Parse textNumber to prevent invalid inputs
+    // source: https://medium.com/mobile-app-development-publication/making-android-edittext-accept-number-only-efbe2ba1cd69
+
 }
 
 
