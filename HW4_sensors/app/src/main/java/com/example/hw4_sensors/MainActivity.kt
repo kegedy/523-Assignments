@@ -30,7 +30,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     private val sizeN: Int = 5
     private val sizeM: Int = 5
-    private val sizeL: Int = 20
+    private val sizeL: Int = 25
 
     var slidingWindow = FloatArray(sizeN) { 0.0f } // smooths the normalized magnitude response
     var detectWindow = FloatArray(sizeM) {0.0f}   // sets window size for threshold crossing
@@ -39,11 +39,12 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     private var iter: Int = 0
     private var detectCounter: Int = 0
-    private val magThresh: Int = 15
+    private val magThresh: Float = 15F
     private var goal: Int = 10
     private var activated: Boolean = false
     private var userDefined: Boolean = false
     private val tg: ToneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+    private var notified: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,9 +99,15 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
         addToWindow(mag-mean, slidingWindow)
         addToWindow(movingAVG(iter), detectWindow)
-        addToWindow(if (positiveSlopeThresh()) 1.0f else 0.0f, activationWindow)
         thisSeries.appendData(DataPoint(xval, movingAVG(iter).toDouble()), true, 105)
 
+        if (positiveSlopeThresh()) {
+            addToWindow(1.0f, activationWindow)
+            detectCounter = increment(detectCounter)
+            clearWindow(detectWindow)
+        } else {
+            addToWindow(0.0f, activationWindow)
+        }
         activityStart()
         updateViews()
         if (iter<sizeN) iter++
@@ -205,10 +212,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         }
         cond = cond && (detectWindow.minOrNull()!! <magThresh)
         cond = cond && (detectWindow.maxOrNull()!! >magThresh)
-        if (cond) {
-            Log.i("Kevin","detectWindow.minOrNull() = " + detectWindow.minOrNull().toString())
-            Log.i("Kevin","detectWindow.maxOrNull() = " + detectWindow.maxOrNull().toString())
-        }
         return cond
     }
 
@@ -217,16 +220,17 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     }
 
     private fun increment(counter:Int): Int {
-        if (counter+1 > goal) return 1
-        else return counter+1
+        return if (activated) {
+            if (userDefined && counter+1>goal) 1
+            else counter+1
+        } else counter
     }
 
     private fun activityStart() {
         if (activationWindow.sum() >= 2 && !activated) {
-            Log.i("Kevin","activationWindow.sum() = " + activationWindow.sum().toString())
             activated = true
+            Log.i("Kevin","activated=$activated")
             clearWindow(activationWindow)
-            clearWindow(detectWindow)
         }
     }
 
@@ -251,10 +255,11 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private fun updateViews() {
         updateTextView(R.id.activation, "activation=$activated")
         updateTextView(R.id.user_defined_text, "user_defined=$userDefined")
-        if (positiveSlopeThresh() && activated) {
-            detectCounter =  increment(detectCounter)
-            clearWindow(detectWindow)
-            if (detectCounter == goal) tg.startTone(ToneGenerator.TONE_PROP_BEEP, 100)
+        if (activated && userDefined && detectCounter == goal) {
+            if (!notified) tg.startTone(ToneGenerator.TONE_PROP_BEEP,200)
+            notified = true
+        } else {
+            notified = false
         }
         if (userDefined) {
             updateButtonText(R.id.user_defined, "DISABLE")
@@ -268,7 +273,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     }
     // TODO: Parse textNumber to prevent invalid inputs
     // source: https://medium.com/mobile-app-development-publication/making-android-edittext-accept-number-only-efbe2ba1cd69
-
 }
 
 
