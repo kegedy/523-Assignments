@@ -464,8 +464,6 @@ class MainActivity : AppCompatActivity() {
         val detector = FaceDetection.getClient(highAccuracyOpts)
 
         detector.process(inputImage)
-
-
             .addOnSuccessListener { faces ->
                 Log.i("Kevin","inputImage detector: success")
                 if (faces.isNotEmpty()) face = faces[0]
