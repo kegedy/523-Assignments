@@ -75,9 +75,24 @@ void drawIMU(float x, float y, float z) {
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0,0);
     // display.print(IMU.gyroscopeSampleRate()); display.println(" Hz"); //119Hz
-    display.print("       x = "); display.println(x);
-    display.print("       y = "); display.println(y);
-    display.print("       z = "); display.println(z);
+    if (x>=0) {
+      display.print("       x =  "); display.println(x);
+    }
+    else  {
+      display.print("       x = "); display.println(x);
+    }
+    if (y>=0) {
+      display.print("       y =  "); display.println(y);
+    }
+    else {
+      display.print("       y = "); display.println(y);
+    }
+    if (z>=0) {
+      display.print("       z =  "); display.println(z);
+    }
+    else  {
+      display.print("       z = "); display.println(z);
+    }
     display.display();
 }
 
